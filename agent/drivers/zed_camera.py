@@ -1,9 +1,10 @@
-from narnia.core import ROSActuator, ROSServiceSubscriber, image_msg_to_numpy
+from narnia.core import Driver, ROSActuator, ROSServiceSubscriber, image_msg_to_numpy
 
 import time
 import cv2
 import numpy as np
 import base64
+
 
 class AttrDict(dict):
     def __init__(self, *args, **kwargs):
@@ -11,7 +12,8 @@ class AttrDict(dict):
         self.__dict__ = self
 
 
-class ZEDCamera(ROSActuator):
+@Driver()
+class ZEDCameraDriver(ROSActuator):
     def __init__(self):
         print('Initializing camera, cool camera...')
         super().__init__()

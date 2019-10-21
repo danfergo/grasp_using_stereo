@@ -1,16 +1,16 @@
-from narnia.core import ROSActuator, ROSTopicPublisher
+from narnia.core import ROSActuator, ROSTopicPublisher, Driver
 
 from math import pi, sqrt
 
 import time
-import roslibpy
 
 
 def magnitude(v):
     return sqrt(v['x'] ** 2 + v['y'] ** 2 + v['z'] ** 2)
 
 
-class Arm(ROSActuator):
+@Driver()
+class ArmDriver(ROSActuator):
     def __init__(self):
         self.collision_threshold = 30
         print('Initializing arm...')
@@ -67,8 +67,8 @@ global pose_wrt_base = pose_trans(get_forward_kin(), pose_wrt_tool)
 movel(pose_wrt_base, a=0.5, v=0.01)
 end"""
         cmd = move_cmd.format(*pose)
-        self.ur_script.publish(roslibpy.Message({'data': cmd}))
-        time.sleep(0.5)
+        # self.ur_script.publish(roslibpy.Message({'data': cmd}))
+        # time.sleep(0.5)
 
     def stop(self):
 
@@ -76,8 +76,8 @@ end"""
 def cmd():        
 speedj([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 2)
 end"""
-        cmd = move_cmd
-        self.ur_script.publish(roslibpy.Message({'data': cmd}))
+        # cmd = move_cmd
+        # self.ur_script.publish(roslibpy.Message({'data': cmd}))
 
     def push(self, command):
         if isinstance(command, tuple) and command[0] == 'rel':

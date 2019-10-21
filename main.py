@@ -1,21 +1,43 @@
 from narnia.core import Narnia
-from agent import AgentModule
+from agent.agent_md import AgentModule
 
 Narnia.bootstrap(AgentModule)
 
+# from agent.drivers.gripper import GripperDriver
 
-import cv2
-import time
+# import time
 
-from agent.drivers.zed_camera import ZEDCamera
-from agent.drivers.gripper import Gripper
-from agent.drivers.arm import Arm
+# gripper = GripperDriver()
+#
+# time.sleep(1)
+# gripper.reset()
+#
+# time.sleep(1)
+# gripper.activate()
+# time.sleep(1)
+# gripper.open()
 
-from narnia.core.drivers.ros_actuator import print_ros_topics
+# while True:
+#     gripper.close()
+#     time.sleep(1)
+#     gripper.open()
+#     time.sleep(1)
+
+
+
+
+# import cv2
+# import time
+#
+# from agent.drivers.zed_camera import ZEDCamera
+# from agent.drivers.gripper import Gripper
+# from agent.drivers.arm import Arm
+#
+# from narnia.core.drivers.ros_actuator import print_ros_topics
 
 # print_ros_topics()
 
-from math import pi
+# from math import pi
 
 
 # DETECT_POS = [0.4, 0, 0.4, pi, 0, -pi / 4 + pi]

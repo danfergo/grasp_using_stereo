@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 
 
-class Camera:
+class CameraDriver:
 
     def __init__(self, camera_id=1, mode='stereo', buffer_size=5):
         print('Initializing camera...')
