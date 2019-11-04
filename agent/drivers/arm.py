@@ -1,47 +1,62 @@
-from narnia.core import ROSActuator, ROSTopicPublisher, Driver
+from functools import partial
+
+from narnia.core import ROSActuator, ROSTopicPublisher, Driver, ROSTopicSubscriber, RequestAction
 
 from math import pi, sqrt
 
 import time
 
+import asyncio
 
-def magnitude(v):
-    return sqrt(v['x'] ** 2 + v['y'] ** 2 + v['z'] ** 2)
-
+NET_LATENCY = 0.5
 
 @Driver()
 class ArmDriver(ROSActuator):
+
     def __init__(self):
-        self.collision_threshold = 30
-        print('Initializing arm...')
+        self.loop = asyncio.get_event_loop()
+
         self.JOINTS_STATE = None
         self.WRENCH_DATA = None
+        self.TCP_POSE_DATA = None
+
         self.ur_script = None
+
+        self.future = None
+        self.future_condition = None
+
         super().__init__()
 
-    def after_init(self):
-        pass
-        # self.ur_script = roslibpy.Topic(self.ros_client, '/ur_driver/URScript', 'std_msgs/String')
-        #
-        # def _wrench(data):
-        #     self.WRENCH_DATA = data
-        #
-        # roslibpy.Topic(self.ros_client, '/wrench', 'geometry_msgs/WrenchStamped').subscribe(_wrench)
-        #
-        # def _joint_states(data):
-        #     self.JOINTS_STATE = data
-        #
-        # roslibpy.Topic(self.ros_client, "/joint_states", 'sensor_msgs/JointState').subscribe(_joint_states)
-        #
-        # time.sleep(0.5)
-        # print('Arm ready.')
+    def stopped(self):
+        return self.JOINTS_STATE['velocity'] is not None and sum(
+            [abs(x) for x in self.JOINTS_STATE['velocity']]) < 0.001
+
+    def at_position(self, pos):
+        if self.TCP_POSE_DATA is None:
+            return False
+
+        p = self.TCP_POSE_DATA['position']
+        d = abs(sqrt((p['x'] - pos[0]) ** 2 + (p['y'] - pos[1]) ** 2 + (p['z'] - pos[2]) ** 2) - 0.174)
+        return d < 0.003
+
+    @ROSTopicSubscriber('/joint_states')
+    def on_joint_states(self, joint_states):
+        self.JOINTS_STATE = joint_states
+
+    @ROSTopicSubscriber('/tcp_position')
+    def on_data(self, data):
+        self.TCP_POSE_DATA = data
+
+    @ROSTopicSubscriber('/wrench')
+    def on_wrench(self, wrench_data):
+        self.WRENCH_DATA = wrench_data
 
     @ROSTopicPublisher('/ur_driver/URScript')
     def exec(self, script):
         return {'data': script}
 
-    def move_abs(self, pose):
-        pose = [round(p, 2) for p in pose]
+    def move_abs(self, pose, speed=1.0):
+        pose = [round(p, 2) for p in pose] + [round(-pi / 2 - pi / 4, 2)]
         move_cmd = """
 def cmd():        
 global abs_pos = [{}, {}, {}]
@@ -49,11 +64,10 @@ global abs_ori = rpy2rotvec([{}, {}, {}])
 global abs_pose = p[abs_pos[0], abs_pos[1], abs_pos[2], abs_ori[0], abs_ori[1], abs_ori[2]]
 global corrected_frame = p[0, 0, 0, 0, 0, {}]
 global corrected_pose = pose_trans(corrected_frame, abs_pose)
-movep(corrected_pose, a=1, v=0.09)
+movel(corrected_pose, a={}, v={})
 end"""
-        print('>>>>>>>>>', (pose + [-pi / 2 - pi / 4]))
-        self.exec(move_cmd.format(*(pose + [round(-pi / 2 - pi / 4, 2)])))
-        time.sleep(2)
+        self.exec(move_cmd.format(*(pose + [0.3 * speed, 0.5 * speed])))
+        return RequestAction(self, lambda ts, t: t - ts > NET_LATENCY and self.at_position(pose) and self.stopped())
 
     def move_rel(self, pose):
         pose = [round(p, 2) for p in pose]
@@ -64,53 +78,23 @@ global pos = [{}, {}, {}]
 global ori = rpy2rotvec([{}, {}, {}])
 global pose_wrt_tool = p[pos[0], pos[1], pos[2], ori[0], ori[1], ori[2]]
 global pose_wrt_base = pose_trans(get_forward_kin(), pose_wrt_tool)
-movel(pose_wrt_base, a=0.5, v=0.01)
+movel(pose_wrt_base, a=0.3, v=0.05)
 end"""
-        cmd = move_cmd.format(*pose)
-        # self.ur_script.publish(roslibpy.Message({'data': cmd}))
-        # time.sleep(0.5)
+        self.exec(move_cmd.format(*pose))
+        return RequestAction(self, lambda ts, t: t - ts > NET_LATENCY and self.stopped())
 
     def stop(self):
-
         move_cmd = """
 def cmd():        
 speedj([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 2)
 end"""
-        # cmd = move_cmd
-        # self.ur_script.publish(roslibpy.Message({'data': cmd}))
+        self.exec(move_cmd)
+        return RequestAction(self, lambda ts, t: t - ts > NET_LATENCY and self.stopped())
 
-    def push(self, command):
-        if isinstance(command, tuple) and command[0] == 'rel':
-            self.move_rel(command[1])
-        elif command == 'stop':
-            self.stop()
-        else:
-            self.move_abs(command)
+    def tcp_force(self):
+        return self.WRENCH_DATA['wrench']['force'] if self.WRENCH_DATA is not None else None
 
-    def pull(self):
-        return {
-            'joints_velocity': self.JOINTS_STATE['velocity'] if self.JOINTS_STATE is not None else None,
-            'wrench': self.WRENCH_DATA['wrench'] if (
-                    self.WRENCH_DATA is not None and time.time() - self.WRENCH_DATA['header']['stamp'][
-                'secs'] < 1) else None
-        }
+    def tcp_position(self):
+        pose = self.TCP_POSE_DATA['position']
+        return pose['x'], pose['y'], pose['z']
 
-    def collision(self):
-        f = self.WRENCH_DATA['wrench']['force']
-        return magnitude(f) > self.collision_threshold and f['z'] > self.collision_threshold
-
-    def moving(self):
-        return sum([abs(x) for x in self.JOINTS_STATE['velocity']]) > 0.001
-
-    def waits_stops(self):
-        while self.moving() and not self.collision():
-            time.sleep(0.01)
-
-        if self.collision():
-            self.stop()
-            time.sleep(0.2)
-            self.move_rel([0, 0, -0.01, 0, 0, 0])
-
-            self.waits_stops()
-            return False
-        return True

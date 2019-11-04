@@ -1,6 +1,5 @@
 from narnia.core import Driver, ROSActuator, ROSServiceSubscriber, image_msg_to_numpy
 
-import time
 import cv2
 import numpy as np
 import base64
@@ -15,13 +14,9 @@ class AttrDict(dict):
 @Driver()
 class ZEDCameraDriver(ROSActuator):
     def __init__(self):
-        print('Initializing camera, cool camera...')
         super().__init__()
         self.t = 0
         self.data = None
-
-    def after_init(self):
-        pass
 
     def get_frame(self):
         if self.data:
@@ -38,3 +33,8 @@ class ZEDCameraDriver(ROSActuator):
     def read(self):
         self.data = self.read_ros().data['image']
         return self.get_frame()
+
+    def left(self):
+        im = self.read()
+        h, w, d = np.shape(im)
+        return im[:, 0:w // 2, :]
