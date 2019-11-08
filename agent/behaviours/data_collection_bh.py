@@ -29,7 +29,7 @@ async def ensure(f, *args, **kwargs):
         if res == 'DONE':
             break
         else:
-            await asyncio.sleep(3)
+            await asyncio.sleep(2)
 
 
 def segment_colorfulness(image, mask):
@@ -71,14 +71,13 @@ class DataCollectionBehaviour:
         self.failed_attempts = 0
         self.refresh_after = 10
         self.swipe_every = 8
-        self.manipulator_meta = {}
         self.h = None
         self.i = 0
 
         self.grasps = {}
         self.true_amplitudes = {}
 
-        self.memory = Memory('/media/danfergo/c60e6fb7-633f-46ff-a6ab-2930ec98d57f/experimental_data/20191103')
+        self.memory = Memory('/media/danfergo/c60e6fb7-633f-46ff-a6ab-2930ec98d57f/experimental_data/20191106')
 
         meta = self.memory['meta']
         if meta is not None:
@@ -88,51 +87,32 @@ class DataCollectionBehaviour:
         if homography is not None:
             self.h = homography[0]
 
-        grasps = self.memory['grasps']
-        if grasps is not None:
-            self.grasps = grasps[0]
-
-        true_amplitudes = self.memory['true_amplitudes']
-        if true_amplitudes is not None:
-            self.true_amplitudes = true_amplitudes[0]
-
-        manipulator_meta = self.memory['manipulator_meta']
-        if manipulator_meta is not None:
-            self.manipulator_meta = manipulator_meta.reshape((1,))[0]
-
     def save_meta(self):
         self.memory['meta'] = np.array([
             self.i
         ])
 
     def save_grasp(self, grasp):
-        self.grasps[self.i] = grasp
-        self.memory['grasps'] = np.array([self.grasps])
+        self.memory[self.i, 'grasp'] = np.array([grasp])
         print('Saved grasp ', grasp)
 
     def save_true_amplitude(self, amplitude):
-        self.true_amplitudes[self.i] = amplitude
-        self.memory['true_amplitudes'] = np.array([self.true_amplitudes])
+        self.memory[self.i, 'true_amplitude'] = np.array([amplitude])
 
     def save_camera(self, name):
-        self.memory.save_img(('data', self.i, name), self.camera.read())
+        self.memory.save_img((self.i, name), self.camera.read())
         print('Saved image ', name)
 
     def save_homography(self, h):
         self.memory['homography'] = np.array([h])
 
     def save_manipulator(self, name):
-        if self.i not in self.manipulator_meta:
-            self.manipulator_meta[self.i] = {}
-
-        self.manipulator_meta[self.i][name] = {
+        self.memory[self.i, 'manipulator_state', name] = np.array([{
             'gripper': self.gripper.STATUS,
             'arm_tcp': self.arm.TCP_POSE_DATA,
             'arm_wrench': self.arm.WRENCH_DATA,
             'arm_joints': self.arm.JOINTS_STATE
-        }
-
-        self.memory['manipulator_meta'] = self.manipulator_meta
+        }])
 
     def save_moment(self, name):
         self.save_camera(name)
