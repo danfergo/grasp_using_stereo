@@ -10,6 +10,7 @@ import asyncio
 
 NET_LATENCY = 0.5
 
+
 @Driver()
 class ArmDriver(ROSActuator):
 
@@ -37,7 +38,7 @@ class ArmDriver(ROSActuator):
 
         p = self.TCP_POSE_DATA['position']
         d = abs(sqrt((p['x'] - pos[0]) ** 2 + (p['y'] - pos[1]) ** 2 + (p['z'] - pos[2]) ** 2) - 0.174)
-        return d < 0.003
+        return d < 0.007
 
     @ROSTopicSubscriber('/joint_states')
     def on_joint_states(self, joint_states):
@@ -66,7 +67,7 @@ global corrected_frame = p[0, 0, 0, 0, 0, {}]
 global corrected_pose = pose_trans(corrected_frame, abs_pose)
 movel(corrected_pose, a={}, v={})
 end"""
-        self.exec(move_cmd.format(*(pose + [0.3 * speed, 0.5 * speed])))
+        self.exec(move_cmd.format(*(pose + [0.2 * speed, 0.5 * speed])))
         return RequestAction(self, lambda ts, t: t - ts > NET_LATENCY and self.at_position(pose) and self.stopped())
 
     def move_rel(self, pose):
@@ -78,10 +79,10 @@ global pos = [{}, {}, {}]
 global ori = rpy2rotvec([{}, {}, {}])
 global pose_wrt_tool = p[pos[0], pos[1], pos[2], ori[0], ori[1], ori[2]]
 global pose_wrt_base = pose_trans(get_forward_kin(), pose_wrt_tool)
-movel(pose_wrt_base, a=0.3, v=0.05)
+movel(pose_wrt_base, a=0.1, v=0.1)
 end"""
         self.exec(move_cmd.format(*pose))
-        return RequestAction(self, lambda ts, t: t - ts > NET_LATENCY and self.stopped())
+        return RequestAction(self, lambda ts, t: t - ts > NET_LATENCY and self.stopped() and self.at_position(pose))
 
     def stop(self):
         move_cmd = """
@@ -92,9 +93,11 @@ end"""
         return RequestAction(self, lambda ts, t: t - ts > NET_LATENCY and self.stopped())
 
     def tcp_force(self):
-        return self.WRENCH_DATA['wrench']['force'] if self.WRENCH_DATA is not None else None
+        if self.WRENCH_DATA['wrench']['force'] is not None:
+            force = self.WRENCH_DATA['wrench']['force']
+            return force['x'], force['y'], force['z']
+        return None
 
     def tcp_position(self):
         pose = self.TCP_POSE_DATA['position']
         return pose['x'], pose['y'], pose['z']
-
