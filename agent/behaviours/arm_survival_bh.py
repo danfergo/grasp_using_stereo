@@ -10,10 +10,11 @@ from math import sqrt
 from agent.drivers.gripper import GripperDriver
 
 import asyncio
+import numpy as np
 
 
 def magnitude(v):
-    return sqrt(v['x'] ** 2 + v['y'] ** 2 + v['z'] ** 2)
+    return sqrt(sum([vv ** 2 for vv in v]))
 
 
 @Behaviour()
@@ -31,14 +32,17 @@ class ArmSurvival:
         if self.arm_in_collision():
             await self.arm.stop()
             await self.arm.move_rel([0, 0, -0.025, 0, 0, 0])
-            # await asyncio.gather(
-                # self.gripper.stop(),
-            # )
+
+            force = self.arm.tcp_force()
+            m = magnitude(force)
+            opposite = [0, 0, 0] if m == 0 else np.round((np.array(force) / m) * -0.02, decimals=3).tolist()
+            await self.arm.move_rel(opposite + [0, 0, 0])
+
         else:
+
             if self.collection is None or self.collection.done():
                 loop = asyncio.get_event_loop()
                 self.collection = loop.create_task(self.data_collection.action())
-
 
     def arm_in_collision(self):
         tcp_force = self.arm.tcp_force()
