@@ -6,9 +6,9 @@ from cv2 import resize
 BASE_I = 0
 O_SIZE = (224, 224)
 TRIM_TOP = 50
-VAL_SPLIT = 5
+VAL_SPLIT = 50
 IN = '../data/20191102_2/'
-OUT = '../data/dataset/'
+OUT = '../data/dataset_2/'
 
 
 def horizontal_split(img):
@@ -47,7 +47,7 @@ def get_final_range(memory, i):
     return true_ranges[i] if i in true_ranges else None
 
 
-def get_all_successful(memory, max_i):
+def get_all(memory, max_i):
     index = [[], []]
 
     def range_arg(r):
@@ -67,7 +67,7 @@ def main():
 
     max_i = in_mem['meta'][0]
     print('Indexing ...')
-    index = get_all_successful(in_mem, max_i)
+    index = get_all(in_mem, max_i)
     print('Finished indexing.')
     train, val = [[], []], [[], []]
     for c in range(len(index)):
@@ -77,7 +77,6 @@ def main():
 
     grasps = {'val': {0: {}, 1: {}}, 'train': {0: {}, 1: {}}}
     final_ranges = {'val': {0: {}, 1: {}}, 'train': {0: {}, 1: {}}}
-
     for i in range(max_i + 1):
         grasp = get_grasp(in_mem, i)
         final_range = get_final_range(in_mem, i)
