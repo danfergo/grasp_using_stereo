@@ -33,10 +33,10 @@ class ArmSurvival:
             await self.arm.stop()
             await self.arm.move_rel([0, 0, -0.025, 0, 0, 0])
 
-            force = self.arm.tcp_force()
-            m = magnitude(force)
-            opposite = [0, 0, 0] if m == 0 else np.round((np.array(force) / m) * -0.02, decimals=3).tolist()
-            await self.arm.move_rel(opposite + [0, 0, 0])
+            # force = self.arm.tcp_force()
+            # m = magnitude(force)
+            # opposite = [0, 0, 0] if m == 0 else np.round((np.array(force) / m) * -0.02, decimals=3).tolist()
+            # await self.arm.move_rel(opposite + [0, 0, 0])
 
         else:
 
@@ -46,6 +46,7 @@ class ArmSurvival:
 
     def arm_in_collision(self):
         tcp_force = self.arm.tcp_force()
+        # print(self.arm.tcp_position()[2])
         return tcp_force is not None and magnitude(tcp_force) > self.collision_threshold and \
-               tcp_force['z'] > self.collision_threshold
-               # and self.arm.tcp_position()[2] < 0.35
+               tcp_force[2] > 0.5 * self.collision_threshold and \
+               self.arm.tcp_position()[2] < 0.32

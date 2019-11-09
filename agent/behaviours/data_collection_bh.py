@@ -77,7 +77,7 @@ class DataCollectionBehaviour:
         self.grasps = {}
         self.true_amplitudes = {}
 
-        self.memory = Memory('/media/danfergo/c60e6fb7-633f-46ff-a6ab-2930ec98d57f/experimental_data/20191106')
+        self.memory = Memory('/media/danfergo/c60e6fb7-633f-46ff-a6ab-2930ec98d57f/experimental_data/20191108')
 
         meta = self.memory['meta']
         if meta is not None:

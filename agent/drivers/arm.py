@@ -67,7 +67,7 @@ global corrected_frame = p[0, 0, 0, 0, 0, {}]
 global corrected_pose = pose_trans(corrected_frame, abs_pose)
 movel(corrected_pose, a={}, v={})
 end"""
-        self.exec(move_cmd.format(*(pose + [0.2 * speed, 0.5 * speed])))
+        self.exec(move_cmd.format(*(pose + [0.2 * speed, 0.3 * speed])))
         return RequestAction(self, lambda ts, t: t - ts > NET_LATENCY and self.at_position(pose) and self.stopped())
 
     def move_rel(self, pose):
